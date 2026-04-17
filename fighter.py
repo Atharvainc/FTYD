@@ -66,7 +66,43 @@ class fighter:
         pg.draw.rect(surface, (0,255,0,255), (0, 0, int(barw * hpercent), barh))
         return surface
 
-
+    #-attack_function-
+    def resolve_attack(self, action):
+        button = action["attack"]
+        is_jumping = self.isjump
+        is_ducking = action['duck']
+        
+        # resolve forward/backward relative to facing
+        if self.facing == "R":
+            is_forward = action["direction"] == "right"
+            is_backward = action["direction"] == "left"
+        else:
+            is_forward = action["direction"] == "left"
+            is_backward = action["direction"] == "right"
+        
+        if button == "light":
+            if is_jumping:
+                return 'hook'
+            elif is_ducking:
+                return 'lowpunch'
+            elif is_forward:
+                return 'forwardpunch'
+            elif is_backward:
+                return 'backpunch'
+            else:
+                return "jab"    # neutral
+        
+        elif button == "heavy":
+            if is_jumping:
+                return 'uppercut'
+            elif is_ducking:
+                return 'swingkkick'
+            elif is_forward:
+                return 'doublepunch'
+            elif is_backward:
+                return 'backkick'
+            else:
+                return 'cross'
     #-draw window fn-
     def draw(self,win):
         pg.draw.rect(win,self.color,(self.x,self.y,self.charw,self.charh))
