@@ -1,5 +1,18 @@
 import pygame as pg
 
+ATTACK_DATA = {
+    "jab":          {"startup": 3,  "active": 6,  "recovery": 3,  "damage": 4},
+    "hook":         {"startup": 6,  "active": 6,  "recovery": 6,  "damage": 8},
+    "lowpunch":     {"startup": 6,  "active": 6,  "recovery": 6,  "damage": 4},
+    "forwardpunch": {"startup": 6,  "active": 6,  "recovery": 6,  "damage": 6},
+    "backpunch":    {"startup": 6,  "active": 6,  "recovery": 6,  "damage": 6},
+    "uppercut":     {"startup": 9,  "active": 9,  "recovery": 12, "damage": 12},
+    "swingkick":    {"startup": 6,  "active": 9,  "recovery": 12, "damage": 8},
+    "doublepunch":  {"startup": 6,  "active": 12,  "recovery": 9, "damage": 10},
+    "backkick":     {"startup": 6,  "active": 6,  "recovery": 9,  "damage": 10},
+    "cross":        {"startup": 6,  "active": 6,  "recovery": 9, "damage": 8},
+}
+
 class fighter:
     def __init__(self, x, y,color,width=1280,height=720, hp=100, charw=70, charh=100):
         self.x = x
@@ -103,6 +116,24 @@ class fighter:
                 return 'backkick'
             else:
                 return 'cross'
+            
+    #-attack fn-
+    def attack(self, action):
+        if action["attack"] is not None and not self.attacking:
+            self.attacking = True
+            self.attack_type = self.resolve_attack(action)
+            self.attack_frame = 0
+        
+        if self.attacking:
+            self.attack_frame += 1
+            data = ATTACK_DATA[self.attack_type]
+            total = data["startup"] + data["active"] + data["recovery"]
+            if self.attack_frame >= total:
+                self.attacking = False
+                self.attack_type = None
+                self.attack_frame = 0
+                self.hit_landed = False
+
     #-draw window fn-
     def draw(self,win):
         pg.draw.rect(win,self.color,(self.x,self.y,self.charw,self.charh))
