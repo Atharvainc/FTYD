@@ -1,10 +1,11 @@
 import pygame as pg
 from abc import ABC,abstractmethod
+from typing import Any
 #abstract class
 class inputhandler(ABC):
     @abstractmethod
-    def get_action(self,keys):
-        pass
+    def get_action(self,keys)->dict[str,Any]:
+        ...
 
 #player1
 class  keyinput1(inputhandler):
@@ -40,5 +41,6 @@ class  keyinput2(inputhandler):
 
 #bot
 class botinput(inputhandler):
-    def get_action(self):
-        pass
+    def get_action(self,keys):
+        action={}
+        return action
