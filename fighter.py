@@ -33,7 +33,7 @@ class fighter:
         self.max_hp = hp
 
         # physics
-        self.ground_y = height - 20
+        self.ground_y = height - 150
         self.is_jump = False
         self.vel_y = 0
         self.gravity = 1.5
@@ -63,27 +63,28 @@ class fighter:
             self.x -= vel
         if action["direction"] == "right" and self.x < self.width - self.char_w:
             self.x += vel
+        # vertical movement & gravity
+        if self.is_jump:
+            # Only apply gravity if we are in the air
+            self.vel_y += self.gravity
+            self.y += self.vel_y
 
-        # gravity — every frame
-        self.vel_y += self.gravity
-        self.y += self.vel_y
-
-        # ground check
-        if self.y >= self.ground_y - self.char_h:
-            self.y = self.ground_y - self.char_h
-            self.vel_y = 0
-            self.is_jump = False
-
-        # duck and jump — only on ground
-        if not self.is_jump:
+            # ground check (landing)
+            if self.y >= self.ground_y - self.char_h:
+                self.y = self.ground_y - self.char_h
+                self.vel_y = 0
+                self.is_jump = False
+        else:
+            # Ducking logic (only while grounded)
             self.char_h = 70 if action["duck"] else 100
-            self.y = self.ground_y - self.char_h
+            self.y = self.ground_y - self.char_h # Keep snapped to the floor
 
+            # Jumping logic (only while grounded)
             if action["jump"]:
                 self.is_jump = True
                 self.vel_y = self.jump_vel
                 self.char_h = 100
-                self.y = self.ground_y - self.char_h
+                # Don't modify self.y here yet; let gravity handle it next frame
 
     # --- attack resolver ---
     def resolve_attack(self, action):
