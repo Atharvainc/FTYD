@@ -1,4 +1,5 @@
 import pygame as pg
+import os
 from fighter import fighter,ATTACK_DATA
 from inputhandler import keyinput1,keyinput2
 pg.init()
@@ -79,6 +80,25 @@ while run:
 
 pg.quit()
 
+#---buttons---
+class button:
+    def __init__(self,x,y,w,h,text):
+        self.rect=pg.Rect(x,y,w,h)
+        self.text=text
+        self.selected=False
+    def is_clicked(self,event):
+        if event.type==pg.MOUSEBUTTONDOWN:
+            return self.rect.colliderect(event.pos)
+        return None
+    def is_hovered(self,mouse_pos):
+        return self.rect.collidepoint(mouse_pos)
+    def draw(self,win,font):
+        color=(100,100,255) if (self.selected or self.is_hovered(pg.mouse.get_pos())) else (50,50,150)
+        pg.draw.rect(win,color,self.rect,border_radius=10)
+        text_surf=font.render(self.text,True,(255,255,255))
+        text_rect=text_surf.get_rect(center=self.rect.center)
+        win.blit(text_surf,text_rect)
+                                                                          
 #---main class---
 class game:
     def __init__(self):
@@ -97,9 +117,21 @@ class game:
         #score
         self.p1rounds=0
         self.p2rounds=0
-        self.hiscore=0
+        self.hiscore=self.load_hs()
         self.score=0
     
+    def load_hs(self):
+        try:
+            with open('data/hs.txt','r') as f:
+                return int(f.read())
+        except:
+            return 0
+    
+    def save_hs(self):
+        os.makedirs('data',exist_ok=True)
+        with open('data/hs.txt','w') as f:
+            f.write(str(self.hiscore))
+
     def run(self):
         states={
             "menu":self.run_menu,
@@ -113,20 +145,49 @@ class game:
             states[self.state]()
 
     def run_menu(self):                
-        self.clock.tick(FPS)
-        return
+        while self.state == "menu":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
+            key=pg.key.get_pressed()
+            button=B
+                    
     def run_char_select(self):
-        self.clock.tick(FPS)
-        return 
+        while self.state == "char_select":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
+
     def run_fight_type_select(self):
-        self.clock.tick(FPS)
-        return
+        while self.state == "fight_type_select":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
+                    
     def run_fight(self):
-        self.clock.tick(FPS)
-        return
+        while self.state == "fight":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
     def run_round_over(self):
-        self.clock.tick(FPS)
-        return
+        while self.state == "round_over":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
     def run_endless_over(self):
-        self.clock.tick(FPS)
-        return
+        while self.state == "endless_over":
+            self.clock.tick(FPS)
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    return
