@@ -32,7 +32,7 @@ def check_hit(attacker:fighter,defender:fighter):
         return
     defender_rect=pg.Rect(defender.x,defender.y,defender.char_w,defender.char_h)
     if hitbox.colliderect(defender_rect) and not attacker.hit_landed:
-        dmg=ATTACK_DATA[attacker.attack_type]['damage']
+        dmg=ATTACK_DATA[attacker.attack_type]['damage']#type:ignore
         defender.hp-=dmg
         defender.hp=max(0,defender.hp)
         attacker.hit_landed=True
@@ -82,8 +82,9 @@ pg.quit()
 #---main class---
 class game:
     def __init__(self):
-        self.win=pg.display.set_mode((1280,720))
+        self.win=pg.display.set_mode((width,height))
         self.clock=pg.time.Clock()
+
         #states
         self.state='menu'
         self.gamemode=None # local, bot
@@ -111,15 +112,21 @@ class game:
         while True:
             states[self.state]()
 
-    def run_menu(self):
+    def run_menu(self):                
+        self.clock.tick(FPS)
         return
     def run_char_select(self):
+        self.clock.tick(FPS)
         return 
-    def run_fight_type_select():
+    def run_fight_type_select(self):
+        self.clock.tick(FPS)
         return
-    def run_fight():
+    def run_fight(self):
+        self.clock.tick(FPS)
         return
-    def run_round_over():
+    def run_round_over(self):
+        self.clock.tick(FPS)
         return
-    def run_endless_over():
+    def run_endless_over(self):
+        self.clock.tick(FPS)
         return
