@@ -80,7 +80,8 @@ class fighter:
             return
 
         vel = self.jump_duck_vel if (action["duck"] or self.is_jump) else self.normal_vel
-        if not self.is_parrying:
+        can_move = (not self.is_parrying and not self.is_attacking and not action["parry"] and action["attack"] is None)
+        if can_move:
             if action["direction"] == "left" and self.x > 0:
                 self.x -= vel
             if action["direction"] == "right" and self.x < self.width - self.char_w:
@@ -90,7 +91,6 @@ class fighter:
             # Only apply gravity if we are in the air
             self.vel_y += self.gravity
             self.y += self.vel_y
-
             # ground check (landing)
             if self.y >= self.ground_y - self.char_h:
                 self.y = self.ground_y - self.char_h
@@ -99,12 +99,9 @@ class fighter:
         else:
             self.char_h = self.ducking_h if action["duck"] else self.standing_h
             self.y = self.ground_y - self.char_h
-            
-            self.update_parry(action)   # always call — handles all parry state
-            
+            self.update_parry(action) 
             if action["parry"] and self.is_parrying:
-                return   # stop movement only if actually parrying
-            
+                return
             if action["jump"]:
                 self.char_h = self.standing_h
                 self.y = self.ground_y - self.char_h

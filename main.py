@@ -167,6 +167,10 @@ class game:
             self.p2_char=p2_choice
         else:
             self.p2_char=1-self.p1_char
+        self.p1 = None
+        self.p2 = None
+        self.p1_rounds = 0
+        self.p2_rounds = 0
         self.state='fight'
 
                     
@@ -297,9 +301,6 @@ class game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     self.quit_game()
-                if event.type == pg.KEYDOWN:
-                    if event.key == pg.K_ESCAPE:
-                        self.quit_game()
 
             frame += 1
             if frame >= delay:
@@ -347,6 +348,10 @@ class game:
             pulse = (pulse + 3) % 360
 
             if frame >= delay:
+                self.p1 = None
+                self.p2 = None
+                self.p1_rounds = 0
+                self.p2_rounds = 0
                 self.state = "menu"
 
             # pulsing colour for VICTORY
@@ -395,6 +400,10 @@ class game:
 
             frame += 1
             if frame >= delay:
+                self.p1 = None
+                self.p2 = None
+                self.p1_rounds = 0
+                self.p2_rounds = 0
                 self.state = "menu"
 
             big_font = pg.font.SysFont("arial", 80, bold=True)
