@@ -1,3 +1,5 @@
+from fighter import ATTACK_DATA
+from fighter import fighter
 import os
 from asyncio import coroutines
 import torch
@@ -85,18 +87,44 @@ class DQNBot(botinput):
         self.weights_path = "data/bot_weights.pth"
         self.load_weights()
 
-
-    # save weights
-    def save_weights(self):
-        os.makedirs("data", exist_ok=True)
-        torch.save(self.policy_net.state_dict(), self.weights_path)
-        print("weights saved")
-    
-    # load weights
-    def load_weights(self):
-        if os.path.exists(self.weights_path):
-            self.policy_net.load_state_dict(torch.load(self.weights_path))
-            self.target_net.load_state_dict(torch.load(self.weights_path))
-            print("weights loaded")
+    def get_state(self,p1:fighter,p2:fighter,round_time)->list:
+        state=[]
+        #fight context
+        dist=(p2.x-p1.x)/1280
+        state.append(dist)
+        state.append(p1.hp/p1.max_hp)
+        state.append(p2.hp/p2.max_hp)
+        state.append(round_time/(60**2))
+        #player's current state
+        state.append(float(p1.is_jump))
+        state.append(float(p1.char_h==p1.ducking_h))
+        state.append(float(p1.is_attacking))
+        state.append(float(p1.is_parrying))
+        #attack phase
+        if p1.is_attacking and p1.attack_type in ATTACK_DATA:
+            data=ATTACK_DATA[p1.attack_type]
+            if p1.attack_frame<data['startup']:
+                phase=1
+            elif p1.attack_frame<data['startup']+data['active']:
+                phase=2
+            else:
+                phase=3
         else:
-            print("no weights found, training from scratch")    
+            phase=0
+        state.append(phase/3.0)
+        #action history OHE past 10 frames, 16 actions, 160 values
+        for act_idx in self.action_history:
+            ohe=[0.0]*16
+            ohe[act_idx]=1.0
+            state.extend(ohe)
+        #bot OHE
+        bot_ohe=[0.0]*16
+        bot_ohe[self.bot_last_action]=1.0
+        state.extend(bot_ohe)
+        #dmg exchange
+        state.append(sum(self.damage_dealt)/100.0)
+        state.append(sum(self.damage_taken)/100.0)
+
+    def get_action(self,state:list,is_training:bool)->dict:
+        return {}
+        
