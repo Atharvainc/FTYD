@@ -3,6 +3,7 @@ import sys
 import math
 import os
 from fighter import fighter,ATTACK_DATA
+from bot import DQN,DQNBot,ReplayBuffer
 from inputhandler import keyinput1,keyinput2,botinput
 pg.init()
 
@@ -209,8 +210,8 @@ class game:
             self.p2.move(p2_action)
             self.p1.attack(p1_action)
             self.p2.attack(p2_action)
-            self.check_hit(self.p1,self.p2)
-            self.check_hit(self.p2,self.p1)
+            e1=self.check_hit(self.p1,self.p2)
+            e2=self.check_hit(self.p2,self.p1)
             self.p1.update_facing(self.p2)
             self.p2.update_facing(self.p1)
             winner=self.check_round_over()
@@ -295,7 +296,8 @@ class game:
         msg = f"{winner_name} wins the round!"
         delay = int(self.FPS * 2.5)
         frame = 0
-
+        if isinstance(self.p2_input, DQNBot):
+            self.p2_input.save_weights()
         while self.state == "round_over":
             self.clock.tick(self.FPS)
             for event in pg.event.get():
@@ -493,6 +495,12 @@ class game:
 
         #---helper functions---
     def check_hit(self, attacker, defender):
+        events = {
+        "damage_dealt": 0,
+        "damage_taken": 0,
+        "parry_success": False,
+        "parry_failed": False,
+        "attack_missed": False,}
         hitbox = attacker.get_hitbox()
         if hitbox is None:
             return
@@ -513,7 +521,8 @@ class game:
                     defender.is_parrying = False
                     defender.parry_frame=0
                     defender.parry_recovery=10
-                    return
+                    events['parry_success']=True
+                    return events
                 elif data.get("parry_type") == "low" and defender.char_h == defender.ducking_h:
                     # successful low parry
                     attacker.hit_stun = 20
@@ -521,7 +530,10 @@ class game:
                     defender.is_parrying = False
                     defender.parry_frame=0
                     defender.parry_recovery=10
-                    return
+                    events['parry_success']=True
+                    return events
+                else:
+                    events['parry_failed']=True
             
             # normal hit
             defender.hp -= data["damage"]
@@ -530,6 +542,9 @@ class game:
             defender.got_hit = True
             attacker.hit_landed = True
             defender.apply_knockback(attacker.facing, data["damage"], data.get("knockup", False))
+            events['damage_dealt']=data['damage']
+            events['damage_taken']=data['damage']
+        return events
 
 #for run_char_select
     def select_character(self, title, characters=CHARACTER_DATA):

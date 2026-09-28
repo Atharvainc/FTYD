@@ -1,8 +1,9 @@
 from fighter import ATTACK_DATA
 from fighter import fighter
 import os
+from typing import Any
 from asyncio import coroutines
-import torch
+import torch as tc
 import torch.nn as nn
 import torch.nn.functional as F
 from inputhandler import botinput
@@ -15,12 +16,10 @@ class DQN(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, output_size)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: tc.Tensor) -> tc.Tensor:
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         return self.fc3(x)
-
-QNetwork = DQN
 
 # LAYER 2 :REPLAY BUFFER
 from collections import deque
@@ -48,7 +47,7 @@ class DQNBot(botinput):
     def __init__(self, state_size=179, action_size=8, lr=0.001):
         super().__init__()
         #device
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = 'cuda' if tc.cuda.is_available() else 'cpu'
         # networks
         self.policy_net = DQN(state_size, 256, action_size).to(self.device)
         self.target_net = DQN(state_size, 256, action_size).to(self.device)
@@ -57,7 +56,7 @@ class DQNBot(botinput):
         # replay buffer
         self.memory = ReplayBuffer(capacity=10000)
         # optimiser + loss
-        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=lr)
+        self.optimizer = tc.optim.Adam(self.policy_net.parameters(), lr=lr)
         self.loss_fn = nn.MSELoss()
         # epsilon greedy
         self.epsilon = 1.0        
@@ -118,13 +117,81 @@ class DQNBot(botinput):
             ohe[act_idx]=1.0
             state.extend(ohe)
         #bot OHE
-        bot_ohe=[0.0]*16
+        bot_ohe=[0.0]*8
         bot_ohe[self.bot_last_action]=1.0
         state.extend(bot_ohe)
         #dmg exchange
         state.append(sum(self.damage_dealt)/100.0)
         state.append(sum(self.damage_taken)/100.0)
+        return state
 
-    def get_action(self,state:list,is_training:bool)->dict:
-        return {}
+    def update(self,p1:fighter,p2:fighter,round_time:int):
+        self.current_state=self.get_state(p1,p2,round_time)#cache and build current state
+
+    #inherited fromn botinput
+    def get_action(self,keys)->dict[str,Any]:
+        if not hasattr(self,'current_state') or self.current_state is None:
+            return self.ACTION_MAP[0]
+        if random.random()<self.epsilon:
+            action_idx=random.randint(0,7)
+        else:
+            state_tensor=tc.as_tensor(self.current_state,dtype=tc.float32).unsqueeze(0).to(self.device)
+            with tc.no_grad():
+                q_values=self.policy_net(state_tensor)
+            action_idx=q_values.argmax().item()
+        self.bot_last_action=action_idx
+        self.steps+=1
+        self.epsilon=max(self.epsilon_min,self.epsilon-self.epsilon_decay)
+        return self.ACTION_MAP[action_idx]
+
+    def save_weights(self):
+        os.makedirs(os.path.dirname(self.weights_path),exist_ok=True)
+        tc.save(self.policy_net.state_dict(),self.weights_path)
+
+    def load_weights(self):
+        if os.path.exists(self.weights_path):
+            state_dict=tc.load(self.weights_path,map_location=self.device)
+            self.policy_net.load_state_dict(state_dict)
+            self.target_net.load_state_dict(state_dict)
+
+    def train_step(self):
+        if len(self.memory) < self.batch_size:
+            return 0 # not enuf experience 
+        self.steps+=1
+        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+        states_t=tc.as_tensor(states,dtype=tc.float32).to(self.device)
+        actions_t=tc.as_tensor(states,dtype=tc.float32).to(self.device)
+        rewards_t=tc.as_tensor(states,dtype=tc.float32).to(self.device)
+        next_states_t=tc.as_tensor(states,dtype=tc.float32).to(self.device)
+        dones_t=tc.as_tensor(states,dtype=tc.float32).to(self.device)
+        #bellman eq.
+        #curr Q
+        current_q = self.policy_net(states_t).gather(1, actions_t.unsqueeze(1)).squeeze(1)
+        # target Q val
+        with tc.no_grad():
+            next_q = self.target_net(next_states_t).max(1)[0]
+            target_q = rewards_t + self.gamma * next_q * (1 - dones_t)
         
+        # loss and update
+        loss = self.loss_fn(current_q, target_q)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        # update target network periodically
+        if self.steps % self.target_update_freq == 0:
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+        
+        return loss.item()
+
+    #reward fn
+    def calculate_reward(self,events:dict)->float:
+        reward=0.0
+        reward+=events.get('damage_dealt',0)*0.5
+        reward-=events.get('damage_taken',0)*0.5
+        reward+=events.get('parry_success',False)*15
+        reward-=events.get('parry_failed',False)*5
+        reward-=events.get('attack_missed',False)*3
+        reward+=events.get('round_win',False)*50
+        reward-=events.get('round_loss',False)*50
+        return reward

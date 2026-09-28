@@ -50,6 +50,7 @@ class fighter:
 
         # attack state
         self.is_attacking = False
+        self.attack_missed=False    
         self.attack_type = ''
         self.attack_frame = 0
         self.hit_landed = False
@@ -155,6 +156,10 @@ class fighter:
                 data = ATTACK_DATA[self.attack_type]
                 total = data["startup"] + data["active"] + data["recovery"]
                 if self.attack_frame >= total:
+                    if not self.hit_landed:
+                        self.attack_missed=True
+                    else:
+                        self.attack_missed=False
                     self.is_attacking = False
                     self.attack_type = ""
                     self.attack_frame = 0
