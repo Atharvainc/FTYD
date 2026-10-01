@@ -3,14 +3,13 @@ import sys
 import math
 import os
 from fighter import fighter,ATTACK_DATA
-from bot import DQN,DQNBot,ReplayBuffer
+from bot_old import DQN,DQNBot,ReplayBuffer
 from inputhandler import keyinput1,keyinput2,botinput
 pg.init()
 
 #--global vars---
 CHARACTER_DATA={0:{'name':'Ragnarock','color':(0,0,255),'hp':100},
                 1:{'name':'Rosa','color':(255,0,0),'hp':100}}
-
 
 #---buttons---
 class button:
@@ -59,6 +58,8 @@ class game:
         self.game_mode=None # local, bot
         self.fight_type=None #3round,endless 
         self.endless_mode=None # local,bot
+        self.bot_difficulty='regular' # easy medium regular
+        self.reaction_delay=12 # frames
         # character selections
         self.p1_char = None
         self.p2_char = None
@@ -92,6 +93,11 @@ class game:
     def run_menu(self):
         localb= button(self.width//2 - 100, self.height//2 - 60, 200, 80, "Local Multiplayer")
         botb= button(self.width//2 - 100, self.height//2 + 60, 200, 80, "Bot Mode")
+        easyb= button(self.width//2 - 100, self.height//2 + 160, 200, 50, "Easy")
+        mediumb= button(self.width//2 - 100, self.height//2 + 220, 200, 50, "Medium")
+        regularb= button(self.width//2 - 100, self.height//2 + 280, 200, 50, "Regular")
+        show_diffi=False
+        diffi_selected=0
         selected = 0
 
         while self.state == "menu":
@@ -100,30 +106,75 @@ class game:
                 if event.type == pg.QUIT:
                     self.quit_game()
                 if event.type == pg.KEYDOWN:
-                    if event.key in (pg.K_UP, pg.K_DOWN):
-                        selected = 1 - selected
-                    if event.key == pg.K_RETURN:
-                        self.game_mode = "local" if selected == 0 else "bot"
-                        self.p1_rounds = 0      
-                        self.p2_rounds = 0
-                        self.state = "fight_type_select"
+                    if not show_diffi:
+                        if event.key in (pg.K_UP, pg.K_DOWN):
+                            selected = 1 - selected
+                        if event.key == pg.K_RETURN:
+                            if selected==0:
+                                self.game_mode='local'
+                                self.p1_rounds=0
+                                self.p2_rounds=0
+                                self.state="fight_type_select"
+                            else:
+                                show_diffi=True
+                    else:
+                        if event.key in (pg.K_UP,pg.K_DOWN):
+                            diffi_selected = (diffi_selected+1)%3
+                        if event.key==pg.K_RETURN:
+                            difficulties = [("easy", 20), ("medium", 15), ("regular", 12)]
+                            name,delay=difficulties[diffi_selected]
+                            self.reaction_delay=delay
+                            self.bot_difficulty=name
+                            self.game_mode = "bot"
+                            self.p1_rounds = 0      
+                            self.p2_rounds = 0
+                            self.state = "fight_type_select"
+                        if event.key==pg.K_ESCAPE:
+                            show_diffi=False
                 if event.type == pg.MOUSEBUTTONDOWN:
-                    if localb.is_clicked(event):
-                        self.game_mode = "local"
-                        self.p1_rounds = 0      
-                        self.p2_rounds = 0
-                        self.state = "fight_type_select"
-                    if botb.is_clicked(event):
-                        self.game_mode = "bot"
-                        self.p1_rounds = 0      
-                        self.p2_rounds = 0
-                        self.state = "fight_type_select"
-            
-            localb.selected = (selected == 0)
-            botb.selected = (selected == 1)
+                    if not show_diffi:
+                        if localb.is_clicked(event):
+                            self.game_mode = "local"
+                            self.p1_rounds = 0      
+                            self.p2_rounds = 0
+                            self.state = "fight_type_select"
+                        if botb.is_clicked(event):
+                            show_diffi=True
+                    else:
+                        if easyb.is_clicked(event):
+                            self.bot_difficulty = "easy"
+                            self.game_mode='bot'
+                            self.reaction_delay=20
+                            self.p1_rounds = 0      
+                            self.p2_rounds = 0
+                            self.state = "fight_type_select"
+                        if mediumb.is_clicked(event):
+                            self.bot_difficulty = "medium"
+                            self.game_mode='bot'
+                            self.reaction_delay=15
+                            self.p1_rounds = 0      
+                            self.p2_rounds = 0
+                            self.state = "fight_type_select"
+                        if regularb.is_clicked(event):
+                            self.bot_difficulty = "regular"
+                            self.game_mode='bot'
+                            self.reaction_delay=12
+                            self.p1_rounds = 0      
+                            self.p2_rounds = 0
+                            self.state = "fight_type_select"
+                        
+            localb.selected = (selected == 0) and not show_diffi
+            botb.selected = (selected == 1) and not show_diffi
+            easyb.selected=show_diffi and diffi_selected==0
+            mediumb.selected=show_diffi and diffi_selected==1
+            regularb.selected=show_diffi and diffi_selected==2
             self.win.fill(self.black)
             localb.draw(self.win, self.font)
             botb.draw(self.win, self.font)
+            if show_diffi:
+                easyb.draw(self.win, self.font)
+                mediumb.draw(self.win, self.font)
+                regularb.draw(self.win, self.font)
             pg.display.update()
 
     def run_fight_type_select(self):
@@ -182,7 +233,7 @@ class game:
             self.p1=fighter(200,500,p1_data['color'],(255,50,50),self.width,self.height,hp=p1_data['hp'])
             self.p2=fighter(900,500,p2_data['color'],(50,50,255),self.width,self.height,hp=p2_data['hp'])
             self.p1_input=keyinput1()
-            self.p2_input=keyinput2() if self.game_mode=='local' else botinput()
+            self.p2_input=keyinput2() if self.game_mode=='local' else DQNBot()
             self.round_time=60*self.FPS
             
         while self.state == "fight":
@@ -202,22 +253,60 @@ class game:
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_ESCAPE:
                         self.state = "pause"
+            #update bot state
+            if isinstance(self.p2_input,DQNBot):
+                self.p2_input.update(self.p1,self.p2,self.round_time)
             keys=pg.key.get_pressed()
+            # actions
             p1_action=self.p1_input.get_action(keys)
             p2_action=self.p2_input.get_action(keys)
-
+            # moves n attacks
             self.p1.move(p1_action)
             self.p2.move(p2_action)
             self.p1.attack(p1_action)
             self.p2.attack(p2_action)
+            # hit checks
             e1=self.check_hit(self.p1,self.p2)
             e2=self.check_hit(self.p2,self.p1)
+            # bot events
+            bot_events={
+                'damage_dealt':e2['damage_dealt'],
+                'damage_taken':e1['damage_dealt'],
+                'parry_success':e2['parry_success'],
+                'parry_failed':e2['parry_failed'],
+                'attack_missed':self.p2.attack_missed,
+                'round_win':False,
+                'round_loss':False,
+                'is_jumping':self.p2.is_jump,
+                'attack_spam':self.p2_input.spam if isinstance(self.p2_input, DQNBot) else False,
+            }
+            self.p2.attack_missed=False
+            # facing update
             self.p1.update_facing(self.p2)
             self.p2.update_facing(self.p1)
+            # round end check
             winner=self.check_round_over()
             if winner:
+                bot_events['round_win']=(winner=="p2")
+                bot_events['round_loss']=(winner=="p1")
                 self.last_round_winner=winner
                 self.state="round_over"
+            # storing data and training bot
+            if isinstance(self.p2_input, DQNBot):
+                self.p2_input.damage_dealt.append(e2['damage_dealt'])
+                self.p2_input.damage_taken.append(e1['damage_dealt'])
+                next_state = self.p2_input.get_state(self.p1, self.p2, self.round_time)
+                reward = self.p2_input.calculate_reward(bot_events)
+                done = self.state != "fight"
+                self.p2_input.memory.push(
+                    self.p2_input.current_state,
+                    self.p2_input.bot_last_action,
+                    reward,
+                    next_state,
+                    done
+                )
+                self.p2_input.train_step()
+            # draw
             self.win.fill(self.black)
             pg.draw.line(self.win, (100, 100, 100), (0, self.p1.ground_y), (self.width, self.p1.ground_y), 2)
             self.p1.draw(self.win)
@@ -503,7 +592,7 @@ class game:
         "attack_missed": False,}
         hitbox = attacker.get_hitbox()
         if hitbox is None:
-            return
+            return events
         
         defender_rect = pg.Rect(defender.x, defender.y, defender.char_w, defender.char_h)
         

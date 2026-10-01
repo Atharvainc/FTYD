@@ -79,7 +79,8 @@ class fighter:
                 self.vel_y=0
                 self.is_jump=False
             return
-
+        if not action:
+            return
         vel = self.jump_duck_vel if (action["duck"] or self.is_jump) else self.normal_vel
         can_move = (not self.is_parrying and not self.is_attacking and not action["parry"] and action["attack"] is None)
         if can_move:
@@ -140,7 +141,7 @@ class fighter:
     # --- attack ---
     def attack(self, action):
         # no attack when stun
-        if self.hit_stun>0 or self.is_parrying:
+        if self.hit_stun>0 or self.is_parrying or not action:
             return
         # trigger new attack only if not already attacking
         if action["attack"] is not None and not self.is_attacking:
